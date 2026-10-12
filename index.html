@@ -1,0 +1,1009 @@
+!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ANIMAL HOUSE OBBY: PREPOSITION QUEST</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Quicksand:wght@600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Quicksand', sans-serif;
+            background-color: #1a1a2e;
+            color: #fff;
+        }
+        .font-game {
+            font-family: 'Fredoka One', cursive;
+        }
+        #canvas-container {
+            width: 100vw;
+            height: 100vh;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+        /* UI Overlay Layer */
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+        }
+        .interactive {
+            pointer-events: auto;
+        }
+        /* Glassmorphism style */
+        .glass-panel {
+            background: rgba(23, 25, 48, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 3px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 12px 32px 0 rgba(0, 0, 0, 0.47);
+        }
+        /* Custom Button Styling */
+        .btn-3d {
+            transition: all 0.1s ease;
+            box-shadow: 0 6px 0 #1b633d, 0 10px 15px rgba(0,0,0,0.3);
+        }
+        .btn-3d:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #1b633d, 0 4px 6px rgba(0,0,0,0.3);
+        }
+        .btn-yellow {
+            box-shadow: 0 6px 0 #b37b00, 0 10px 15px rgba(0,0,0,0.3);
+        }
+        .btn-yellow:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #b37b00, 0 4px 6px rgba(0,0,0,0.3);
+        }
+        /* Word Tiles */
+        .word-tile {
+            cursor: pointer;
+            transition: transform 0.15s ease, background-color 0.2s ease;
+            box-shadow: 0 4px 0 rgba(0,0,0,0.3);
+        }
+        .word-tile:hover {
+            transform: translateY(-2px) scale(1.03);
+        }
+        .word-tile:active {
+            transform: translateY(2px);
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.1);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255,255,255,0.3);
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="select-none overflow-hidden">
+
+    <!-- 3D Canvas -->
+    <div id="canvas-container"></div>
+
+    <!-- UI Overlay Layer -->
+    <div class="ui-layer flex flex-col justify-between p-4 md:p-6">
+
+        <!-- Top HUD Bar -->
+        <div id="top-hud" class="hidden flex justify-between items-start w-full max-w-5xl mx-auto interactive">
+            <!-- Player Info & Progress -->
+            <div class="glass-panel rounded-2xl px-5 py-3 flex items-center space-x-4 border-2 border-green-400">
+                <div class="bg-gradient-to-tr from-green-500 to-emerald-300 p-3 rounded-xl shadow-inner">
+                    <span class="text-2xl">🐱</span>
+                </div>
+                <div>
+                    <div class="text-xs text-green-300 font-bold uppercase tracking-wider">Explorer</div>
+                    <div id="hud-player-name" class="font-game text-xl md:text-2xl text-white">Pupil</div>
+                </div>
+            </div>
+
+            <!-- Distance Arrow Indicator -->
+            <div id="compass-container" class="glass-panel rounded-2xl px-4 py-2 flex items-center space-x-2 border-2 border-yellow-400">
+                <div id="compass-arrow" class="text-3xl text-yellow-300 transform transition-transform duration-100" style="display:inline-block;">⬆️</div>
+                <div>
+                    <div class="text-[10px] text-yellow-300 uppercase font-bold tracking-wider">Nearest Mission</div>
+                    <div id="compass-dist" class="font-game text-lg text-white">0m</div>
+                </div>
+            </div>
+
+            <!-- Score & Missions Tracker -->
+            <div class="glass-panel rounded-2xl px-5 py-3 flex items-center space-x-6 border-2 border-blue-400">
+                <div>
+                    <div class="text-xs text-blue-300 font-bold uppercase tracking-wider">Missions</div>
+                    <div class="font-game text-xl md:text-2xl text-yellow-300"><span id="hud-completed">0</span>/20</div>
+                </div>
+                <div class="h-8 w-0.5 bg-gray-600"></div>
+                <div>
+                    <div class="text-xs text-blue-300 font-bold uppercase tracking-wider">Score</div>
+                    <div id="hud-score" class="font-game text-xl md:text-2xl text-emerald-400">0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Touch Controls overlay (Bottom) -->
+        <div id="touch-controls" class="hidden flex justify-between items-end w-full max-w-4xl mx-auto pb-4 interactive">
+            <!-- Virtual Joystick Touch Area -->
+            <div id="joystick-zone" class="w-32 h-32 bg-white/10 backdrop-blur-md rounded-full border-2 border-white/30 relative flex items-center justify-center">
+                <div id="joystick-knob" class="w-14 h-14 bg-emerald-400/80 rounded-full shadow-lg border-2 border-white transform transition-transform duration-75"></div>
+            </div>
+
+            <!-- Jump Button -->
+            <button id="btn-jump" class="w-20 h-20 bg-emerald-500 hover:bg-emerald-400 active:bg-emerald-600 text-white font-game text-xl rounded-full border-4 border-emerald-300 shadow-2xl flex items-center justify-center btn-3d">
+                JUMP
+            </button>
+        </div>
+    </div>
+
+    <!-- START SCREEN MODAL -->
+    <div id="start-screen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/90 backdrop-blur-lg">
+        <div class="glass-panel max-w-xl w-full p-6 md:p-8 rounded-3xl text-center border-4 border-emerald-400/50 shadow-2xl space-y-6">
+            <div class="inline-block bg-emerald-500/20 px-4 py-1.5 rounded-full border border-emerald-400/40 text-emerald-300 text-sm font-bold tracking-wider uppercase">
+                Grammar Obby Adventure
+            </div>
+            
+            <h1 class="font-game text-3xl md:text-5xl text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-emerald-300 to-teal-200 drop-shadow-md">
+                ANIMAL HOUSE OBBY
+            </h1>
+            <p class="text-emerald-100/90 text-sm md:text-base">
+                Explore the 3D rooms, find 20 cute animals, and master prepositions: <strong class="text-yellow-300">ON</strong>, <strong class="text-yellow-300">IN</strong>, and <strong class="text-yellow-300">UNDER</strong>!
+            </p>
+
+            <!-- Name Input Field -->
+            <div class="space-y-2 text-left">
+                <label class="block text-sm font-bold text-emerald-300 uppercase tracking-wider ml-1">Your Name, Explorer:</label>
+                <input type="text" id="input-player-name" maxlength="18" placeholder="Enter your name..." 
+                       class="w-full px-5 py-4 rounded-2xl bg-slate-800/90 border-2 border-emerald-400/60 text-white font-game text-xl focus:outline-none focus:border-yellow-400 focus:ring-4 focus:ring-yellow-400/20 transition-all placeholder-slate-500">
+            </div>
+
+            <!-- Ring Legend / Instructions -->
+            <div class="grid grid-cols-2 gap-3 pt-2 text-xs md:text-sm text-left">
+                <div class="flex items-center space-x-3 bg-slate-800/60 p-3 rounded-xl border border-emerald-500/30">
+                    <span class="w-4 h-4 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_10px_#34d399]"></span>
+                    <div>
+                        <div class="font-bold text-emerald-300">Green Ring</div>
+                        <div class="text-slate-300 text-xs">Unanswered Question</div>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-3 bg-slate-800/60 p-3 rounded-xl border border-yellow-500/30">
+                    <span class="w-4 h-4 rounded-full bg-yellow-400 shadow-[0_0_10px_#facc15]"></span>
+                    <div>
+                        <div class="font-bold text-yellow-300">Yellow Ring</div>
+                        <div class="text-slate-300 text-xs">Completed Answer</div>
+                    </div>
+                </div>
+            </div>
+
+            <button id="btn-start" class="w-full py-4 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-game text-2xl rounded-2xl border-2 border-emerald-300 btn-3d tracking-wide uppercase">
+                START EXPLORING! 🚀
+            </button>
+        </div>
+    </div>
+
+    <!-- PREPOSITION QUESTION MODAL -->
+    <div id="question-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+        <div class="glass-panel max-w-2xl w-full p-6 md:p-8 rounded-3xl text-center border-4 border-yellow-400/60 shadow-2xl relative space-y-6">
+            
+            <!-- Modal Header -->
+            <div class="flex justify-between items-center border-b border-white/10 pb-4">
+                <div class="flex items-center space-x-3">
+                    <span id="modal-animal-icon" class="text-4xl">🐶</span>
+                    <div class="text-left">
+                        <div id="modal-room-name" class="text-xs font-bold text-yellow-300 uppercase tracking-wider">LIVING ROOM</div>
+                        <div id="modal-mission-title" class="font-game text-lg text-white">Mission 1</div>
+                    </div>
+                </div>
+                <!-- Mission Timer -->
+                <div class="bg-slate-800/80 px-4 py-2 rounded-2xl border border-white/10 flex items-center space-x-2">
+                    <span class="text-sm">⏱️</span>
+                    <span id="modal-timer" class="font-game text-xl text-yellow-400">60s</span>
+                </div>
+            </div>
+
+            <!-- Image/Visual Hint Prompt -->
+            <div id="modal-prompt-box" class="bg-slate-800/70 p-4 rounded-2xl border border-white/10 text-emerald-200 font-bold text-lg md:text-xl">
+                Arrange the words to describe the scene:
+            </div>
+
+            <!-- Target Answer Slot Container -->
+            <div class="space-y-2">
+                <div class="text-xs text-slate-400 font-bold uppercase tracking-wider text-left pl-1">Your Sentence:</div>
+                <div id="sentence-slots" class="min-h-[64px] p-3 rounded-2xl bg-slate-900/90 border-2 border-dashed border-emerald-400/50 flex flex-wrap gap-2 items-center justify-start transition-all">
+                    <!-- Word tiles will drop here -->
+                </div>
+            </div>
+
+            <!-- Word Bank Pool -->
+            <div class="space-y-2">
+                <div class="text-xs text-slate-400 font-bold uppercase tracking-wider text-left pl-1">Tap/Click Words:</div>
+                <div id="word-bank" class="min-h-[64px] p-3 rounded-2xl bg-slate-800/40 border border-white/10 flex flex-wrap gap-2 items-center justify-center">
+                    <!-- Scrambled tiles will render here -->
+                </div>
+            </div>
+
+            <!-- Hint & Feedback Message -->
+            <div id="modal-feedback" class="hidden p-3 rounded-xl text-sm font-bold text-center transition-all"></div>
+
+            <!-- Action Buttons -->
+            <div class="flex space-x-3 pt-2">
+                <button id="btn-reset-words" class="px-5 py-3 bg-slate-700 hover:bg-slate-600 text-white font-game text-base rounded-xl border border-slate-500">
+                    🔄 Reset
+                </button>
+                <button id="btn-submit-answer" class="flex-1 py-3 bg-emerald-500 hover:bg-emerald-400 text-white font-game text-xl rounded-xl border border-emerald-300 btn-3d">
+                    CHECK ANSWER ✅
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FINAL RESULTS / VICTORY MODAL -->
+    <div id="victory-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-xl">
+        <div class="glass-panel max-w-xl w-full p-8 rounded-3xl text-center border-4 border-yellow-400 shadow-2xl space-y-6">
+            <div class="text-6xl animate-bounce">🏆</div>
+            
+            <h2 class="font-game text-4xl text-yellow-300">QUEST COMPLETED!</h2>
+            
+            <p id="victory-greeting" class="text-2xl font-game text-emerald-300">Great Job, Explorer!</p>
+            
+            <div class="bg-slate-800/80 p-6 rounded-2xl border border-white/10 space-y-4">
+                <div class="flex justify-between items-center text-lg">
+                    <span class="text-slate-300">Missions Completed:</span>
+                    <span id="final-completed" class="font-game text-2xl text-yellow-300">20 / 20</span>
+                </div>
+                <div class="flex justify-between items-center text-lg">
+                    <span class="text-slate-300">Final Score:</span>
+                    <span id="final-score" class="font-game text-3xl text-emerald-400">2000</span>
+                </div>
+            </div>
+
+            <p class="text-slate-300 text-sm">
+                You have mastered English prepositions: <span class="text-yellow-300 font-bold">ON</span>, <span class="text-yellow-300 font-bold">IN</span>, and <span class="text-yellow-300 font-bold">UNDER</span>!
+            </p>
+
+            <button id="btn-restart" class="w-full py-4 bg-emerald-500 hover:bg-emerald-400 text-white font-game text-2xl rounded-2xl border-2 border-emerald-300 btn-3d">
+                PLAY AGAIN 🔁
+            </button>
+        </div>
+    </div>
+
+    <!-- MAIN GAME SCRIPT -->
+    <script>
+        // Web Audio Synthesizer for cheerful sound effects without external files
+        const SoundFX = {
+            ctx: null,
+            init() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+            },
+            playPop() {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(800, this.ctx.currentTime + 0.08);
+                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.08);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.08);
+            },
+            playCorrect() {
+                if (!this.ctx) return;
+                const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+                notes.forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.value = freq;
+                    gain.gain.setValueAtTime(0.2, this.ctx.currentTime + idx * 0.08);
+                    gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + idx * 0.08 + 0.2);
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+                    osc.start(this.ctx.currentTime + idx * 0.08);
+                    osc.stop(this.ctx.currentTime + idx * 0.08 + 0.2);
+                });
+            },
+            playWrong() {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(220, this.ctx.currentTime);
+                osc.frequency.setValueAtTime(180, this.ctx.currentTime + 0.15);
+                gain.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, this.ctx.currentTime + 0.3);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.3);
+            }
+        };
+
+        const GameData = {
+            playerName: "Pupil",
+            score: 0,
+            completedCount: 0,
+            currentMission: null,
+            timerInterval: null,
+            timeLeft: 60,
+            missions: [
+                // LIVING ROOM (4)
+                { id: 1, room: "Living Room", animal: "Cat", preposition: "ON", target: "There is a cat on the sofa.", words: ["There", "is", "a", "cat", "on", "the", "sofa."], icon: "🐱" },
+                { id: 2, room: "Living Room", animal: "Dog", preposition: "UNDER", target: "There is a dog under the table.", words: ["There", "is", "a", "dog", "under", "the", "table."], icon: "🐶" },
+                { id: 3, room: "Living Room", animal: "Bird", preposition: "ON", target: "There is a bird on the lamp.", words: ["There", "is", "a", "bird", "on", "the", "lamp."], icon: "🐦" },
+                { id: 4, room: "Living Room", animal: "Rabbit", preposition: "IN", target: "There is a rabbit in the box.", words: ["There", "is", "a", "rabbit", "in", "the", "box."], icon: "🐰" },
+
+                // BEDROOM (4)
+                { id: 5, room: "Bedroom", animal: "Cat", preposition: "ON", target: "There is a cat on the bed.", words: ["There", "is", "a", "cat", "on", "the", "bed."], icon: "🐱" },
+                { id: 6, room: "Bedroom", animal: "Duck", preposition: "UNDER", target: "There is a duck under the desk.", words: ["There", "is", "a", "duck", "under", "the", "desk."], icon: "🦆" },
+                { id: 7, room: "Bedroom", animal: "Rabbit", preposition: "IN", target: "There is a rabbit in the wardrobe.", words: ["There", "is", "a", "rabbit", "in", "the", "wardrobe."], icon: "🐰" },
+                { id: 8, room: "Bedroom", animal: "Dog", preposition: "ON", target: "There is a dog on the rug.", words: ["There", "is", "a", "dog", "on", "the", "rug."], icon: "🐶" },
+
+                // KITCHEN (4)
+                { id: 9, room: "Kitchen", animal: "Cat", preposition: "IN", target: "There is a cat in the cabinet.", words: ["There", "is", "a", "cat", "in", "the", "cabinet."], icon: "🐱" },
+                { id: 10, room: "Kitchen", animal: "Bird", preposition: "ON", target: "There is a bird on the fridge.", words: ["There", "is", "a", "bird", "on", "the", "fridge."], icon: "🐦" },
+                { id: 11, room: "Kitchen", animal: "Dog", preposition: "UNDER", target: "There is a dog under the counter.", words: ["There", "is", "a", "dog", "under", "the", "counter."], icon: "🐶" },
+                { id: 12, room: "Kitchen", animal: "Duck", preposition: "IN", target: "There is a duck in the sink.", words: ["There", "is", "a", "duck", "in", "the", "sink."], icon: "🦆" },
+
+                // BATHROOM (4)
+                { id: 13, room: "Bathroom", animal: "Duck", preposition: "IN", target: "There is a duck in the tub.", words: ["There", "is", "a", "duck", "in", "the", "tub."], icon: "🦆" },
+                { id: 14, room: "Bathroom", animal: "Cat", preposition: "UNDER", target: "There is a cat under the stool.", words: ["There", "is", "a", "cat", "under", "the", "stool."], icon: "🐱" },
+                { id: 15, room: "Bathroom", animal: "Rabbit", preposition: "ON", target: "There is a rabbit on the mat.", words: ["There", "is", "a", "rabbit", "on", "the", "mat."], icon: "🐰" },
+                { id: 16, room: "Bathroom", animal: "Bird", preposition: "ON", target: "There is a bird on the mirror.", words: ["There", "is", "a", "bird", "on", "the", "mirror."], icon: "🐦" },
+
+                // DINING ROOM (4)
+                { id: 17, room: "Dining Room", animal: "Dog", preposition: "UNDER", target: "There is a dog under the chair.", words: ["There", "is", "a", "dog", "under", "the", "chair."], icon: "🐶" },
+                { id: 18, room: "Dining Room", animal: "Cat", preposition: "ON", target: "There is a cat on the dining table.", words: ["There", "is", "a", "cat", "on", "the", "dining", "table."], icon: "🐱" },
+                { id: 19, room: "Dining Room", animal: "Rabbit", preposition: "IN", target: "There is a rabbit in the basket.", words: ["There", "is", "a", "rabbit", "in", "the", "basket."], icon: "🐰" },
+                { id: 20, room: "Dining Room", animal: "Bird", preposition: "ON", target: "There is a bird on the shelf.", words: ["There", "is", "a", "bird", "on", "the", "shelf."], icon: "🐦" }
+            ]
+        };
+
+        let scene, camera, renderer;
+        let playerMesh, playerBody;
+        let missionObjects = [];
+        let keys = { w: false, a: false, s: false, d: false, space: false };
+        let joystickVector = { x: 0, y: 0 };
+        let playerVelocityY = 0;
+        let isGrounded = true;
+        const GRAVITY = -30;
+        const JUMP_FORCE = 12;
+
+        function init3DWorld() {
+            const container = document.getElementById('canvas-container');
+            
+            // Scene Setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a1a2e);
+            scene.fog = new THREE.FogExp2(0x1a1a2e, 0.015);
+
+            // Camera Setup
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(20, 40, 20);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            dirLight.shadow.camera.near = 0.5;
+            dirLight.shadow.camera.far = 150;
+            const d = 40;
+            dirLight.shadow.camera.left = -d;
+            dirLight.shadow.camera.right = d;
+            dirLight.shadow.camera.top = d;
+            dirLight.shadow.camera.bottom = -d;
+            scene.add(dirLight);
+
+            // Build House Environment
+            buildHouseEnvironment();
+
+            // Build Player Avatar
+            createPlayerAvatar();
+
+            // Build Mission Spots with Rings
+            spawnMissionSpots();
+
+            // Resize Event
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        function buildHouseEnvironment() {
+            // House Floor Base
+            const floorGeo = new THREE.BoxGeometry(60, 0.5, 50);
+            const floorMat = new THREE.MeshStandardMaterial({ color: 0x3d312a, roughness: 0.8 });
+            const floor = new THREE.Mesh(floorGeo, floorMat);
+            floor.position.set(0, -0.25, 0);
+            floor.receiveShadow = true;
+            scene.add(floor);
+
+            // Rooms Layout Colors
+            const roomWalls = [
+                { name: "Living Room", color: 0x2b4c7e, x: -15, z: -12, w: 28, d: 22 },
+                { name: "Bedroom", color: 0x5e3a72, x: 15, z: -12, w: 28, d: 22 },
+                { name: "Kitchen", color: 0x2a6f5e, x: -15, z: 12, w: 28, d: 22 },
+                { name: "Bathroom", color: 0x1f6e8c, x: 15, z: 12, w: 14, d: 22 },
+                { name: "Dining Room", color: 0x8c5e1f, x: 22, z: 12, w: 14, d: 22 }
+            ];
+
+            // Outer Walls & Room Dividers
+            const wallMat = new THREE.MeshStandardMaterial({ color: 0x4a5568, roughness: 0.6 });
+            
+            // Outer Boundary Walls
+            createWall(0, 3, -25, 60, 6, 1, wallMat); // North
+            createWall(0, 3, 25, 60, 6, 1, wallMat);  // South
+            createWall(-30, 3, 0, 1, 6, 50, wallMat); // West
+            createWall(30, 3, 0, 1, 6, 50, wallMat);  // East
+
+            // Internal Divider Walls with Doors
+            createWall(0, 3, -12, 1, 6, 24, wallMat); // Center Vertical Wall (North)
+            createWall(0, 3, 12, 1, 6, 24, wallMat);  // Center Vertical Wall (South)
+            createWall(-15, 3, 0, 28, 6, 1, wallMat); // Left Horizontal Wall
+            createWall(15, 3, 0, 28, 6, 1, wallMat);  // Right Horizontal Wall
+
+            // Add Furniture Models in each room
+            addFurnitureModels();
+        }
+
+        function createWall(x, y, z, w, h, d, mat) {
+            const wall = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+            wall.position.set(x, y, z);
+            wall.castShadow = true;
+            wall.receiveShadow = true;
+            scene.add(wall);
+        }
+
+        function addFurnitureModels() {
+            const createBlock = (w, h, d, color, x, y, z) => {
+                const mesh = new THREE.Mesh(
+                    new THREE.BoxGeometry(w, h, d),
+                    new THREE.MeshStandardMaterial({ color, roughness: 0.5 })
+                );
+                mesh.position.set(x, y + h/2, z);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                scene.add(mesh);
+                return mesh;
+            };
+
+            // Living Room Furniture
+            createBlock(6, 1.5, 3, 0xd97706, -20, 0, -18); // Sofa
+            createBlock(4, 1.2, 3, 0x78350f, -12, 0, -18); // Table
+            createBlock(1.5, 4, 1.5, 0xf59e0b, -25, 0, -22); // Lamp
+            createBlock(3, 2, 2, 0x475569, -20, 0, -8); // Box
+
+            // Bedroom Furniture
+            createBlock(6, 2, 7, 0x2563eb, 20, 0, -18); // Bed
+            createBlock(4, 2.5, 2.5, 0x1e3a8a, 10, 0, -20); // Desk
+            createBlock(4, 7, 3, 0x1e1b4b, 25, 0, -8); // Wardrobe
+            createBlock(5, 0.1, 4, 0xec4899, 15, 0, -12); // Rug
+
+            // Kitchen Furniture
+            createBlock(6, 4, 3, 0x059669, -22, 0, 8); // Cabinet
+            createBlock(3.5, 7, 3.5, 0x94a3b8, -25, 0, 20); // Fridge
+            createBlock(7, 2.5, 3, 0x047857, -12, 0, 18); // Counter
+            createBlock(3, 2, 3, 0x0284c7, -12, 0, 8); // Sink
+
+            // Bathroom Furniture
+            createBlock(5, 2.5, 3, 0x0284c7, 12, 0, 20); // Tub
+            createBlock(2, 1.5, 2, 0x0369a1, 16, 0, 8); // Stool
+            createBlock(3, 0.1, 3, 0x06b6d4, 12, 0, 12); // Mat
+            createBlock(3, 3, 0.5, 0xe2e8f0, 18, 3, 24); // Mirror Wall
+
+            // Dining Room Furniture
+            createBlock(2, 1.5, 2, 0x9a3412, 22, 0, 8); // Chair
+            createBlock(8, 2.5, 4, 0xc2410c, 24, 0, 16); // Dining Table
+            createBlock(2.5, 1.5, 2.5, 0x78350f, 28, 0, 20); // Basket
+            createBlock(5, 0.4, 1.5, 0xb45309, 20, 4, 24); // Shelf Wall
+        }
+
+        function createPlayerAvatar() {
+            const playerGroup = new THREE.Group();
+
+            // Roblox-style Blocky Character Body
+            const torso = new THREE.Mesh(
+                new THREE.BoxGeometry(1.2, 1.5, 0.7),
+                new THREE.MeshStandardMaterial({ color: 0x10b981 }) // Emerald shirt
+            );
+            torso.position.y = 1.55;
+            torso.castShadow = true;
+            playerGroup.add(torso);
+
+            const head = new THREE.Mesh(
+                new THREE.BoxGeometry(1, 1, 1),
+                new THREE.MeshStandardMaterial({ color: 0xfde047 }) // Yellow skin head
+            );
+            head.position.y = 2.8;
+            head.castShadow = true;
+            playerGroup.add(head);
+
+            // Legs
+            const legMat = new THREE.MeshStandardMaterial({ color: 0x1e3a8a });
+            const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.3, 0.6), legMat);
+            leftLeg.position.set(-0.3, 0.65, 0);
+            leftLeg.castShadow = true;
+            playerGroup.add(leftLeg);
+
+            const rightLeg = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.3, 0.6), legMat);
+            rightLeg.position.set(0.3, 0.65, 0);
+            rightLeg.castShadow = true;
+            playerGroup.add(rightLeg);
+
+            playerGroup.position.set(0, 0, 0);
+            scene.add(playerGroup);
+            playerMesh = playerGroup;
+        }
+
+        function spawnMissionSpots() {
+            // Coordinate positions corresponding to 20 missions
+            const positions = [
+                // Living Room
+                { x: -20, z: -16.5 }, { x: -12, z: -16 }, { x: -25, z: -20.5 }, { x: -20, z: -6.5 },
+                // Bedroom
+                { x: 20, z: -14 }, { x: 10, z: -18 }, { x: 25, z: -6 }, { x: 15, z: -10 },
+                // Kitchen
+                { x: -22, z: 10 }, { x: -25, z: 20 }, { x: -12, z: 16 }, { x: -12, z: 10 },
+                // Bathroom
+                { x: 12, z: 18 }, { x: 16, z: 6 }, { x: 12, z: 10 }, { x: 18, z: 22 },
+                // Dining Room
+                { x: 22, z: 6 }, { x: 24, z: 14 }, { x: 28, z: 18 }, { x: 20, z: 22 }
+            ];
+
+            GameData.missions.forEach((m, idx) => {
+                const pos = positions[idx];
+
+                const group = new THREE.Group();
+                group.position.set(pos.x, 0, pos.z);
+
+                // Ground Ring Mesh
+                const ringGeo = new THREE.RingGeometry(1.2, 1.7, 32);
+                ringGeo.rotateX(-Math.PI / 2);
+                
+                // UNANSWERED: Bright Pulsing GREEN
+                const ringMat = new THREE.MeshBasicMaterial({ 
+                    color: 0x10b981, 
+                    side: THREE.DoubleSide,
+                    transparent: true,
+                    opacity: 0.85 
+                });
+                const ringMesh = new THREE.Mesh(ringGeo, ringMat);
+                ringMesh.position.y = 0.05;
+                group.add(ringMesh);
+
+                // Vertical Light Beacon Cylinder (Green for unanswered)
+                const beaconGeo = new THREE.CylinderGeometry(1.3, 1.3, 8, 16, 1, true);
+                const beaconMat = new THREE.MeshBasicMaterial({
+                    color: 0x34d399,
+                    transparent: true,
+                    opacity: 0.25,
+                    side: THREE.DoubleSide
+                });
+                const beaconMesh = new THREE.Mesh(beaconGeo, beaconMat);
+                beaconMesh.position.y = 4;
+                group.add(beaconMesh);
+
+                // 3D Animal Placeholder Block
+                const animalMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b });
+                const animalMesh = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.8), animalMat);
+                animalMesh.position.y = 0.8;
+                animalMesh.castShadow = true;
+                group.add(animalMesh);
+
+                scene.add(group);
+
+                missionObjects.push({
+                    data: m,
+                    group: group,
+                    ringMesh: ringMesh,
+                    ringMat: ringMat,
+                    beaconMesh: beaconMesh,
+                    beaconMat: beaconMat,
+                    completed: false,
+                    position: new THREE.Vector3(pos.x, 0, pos.z)
+                });
+            });
+        }
+
+        function updateMissionRingsAndCompass() {
+            let nearestDist = Infinity;
+            let nearestMission = null;
+
+            missionObjects.forEach((mObj) => {
+                const dist = playerMesh.position.distanceTo(mObj.position);
+
+                if (!mObj.completed) {
+                    // Pulsing animation for Green Unanswered Rings
+                    const pulse = 0.7 + Math.sin(Date.now() * 0.005) * 0.3;
+                    mObj.ringMat.opacity = pulse;
+                    mObj.beaconMat.opacity = pulse * 0.3;
+
+                    if (dist < nearestDist) {
+                        nearestDist = dist;
+                        nearestMission = mObj;
+                    }
+                } else {
+                    // Solid Gold/Yellow Ring for Answered
+                    mObj.ringMat.color.setHex(0xfacc15); // Yellow
+                    mObj.ringMat.opacity = 0.9;
+                    mObj.beaconMat.color.setHex(0xfacc15);
+                    mObj.beaconMat.opacity = 0.1;
+                }
+
+                // Check trigger proximity (touch ring to start mission)
+                if (dist < 2.2 && !mObj.completed && !GameData.currentMission) {
+                    openQuestionModal(mObj);
+                }
+            });
+
+            // Update Compass Navigation Arrow
+            const compassArrow = document.getElementById('compass-arrow');
+            const compassDist = document.getElementById('compass-dist');
+
+            if (nearestMission && compassArrow) {
+                const dx = nearestMission.position.x - playerMesh.position.x;
+                const dz = nearestMission.position.z - playerMesh.position.z;
+                
+                // Angle relative to player position
+                const angle = Math.atan2(dx, dz) * (180 / Math.PI);
+                compassArrow.style.transform = `rotate(${angle + 180}deg)`;
+                compassDist.innerText = `${Math.round(nearestDist)}m`;
+            } else if (compassDist) {
+                compassDist.innerText = "Done! 🎉";
+            }
+        }
+
+        let selectedWords = [];
+
+        function openQuestionModal(mObj) {
+            SoundFX.playPop();
+            GameData.currentMission = mObj;
+            const m = mObj.data;
+
+            document.getElementById('modal-room-name').innerText = m.room.toUpperCase();
+            document.getElementById('modal-mission-title').innerText = `Mission ${m.id}: Find the ${m.animal}`;
+            document.getElementById('modal-animal-icon').innerText = m.icon;
+            document.getElementById('modal-prompt-box').innerText = `Form sentence using "${m.preposition}" to describe the ${m.animal}:`;
+            
+            // Reset state
+            selectedWords = [];
+            renderWordBank(m.words);
+            renderSentenceSlots();
+
+            const feedback = document.getElementById('modal-feedback');
+            feedback.classList.add('hidden');
+
+            // Timer Setup
+            GameData.timeLeft = 60;
+            document.getElementById('modal-timer').innerText = `${GameData.timeLeft}s`;
+            clearInterval(GameData.timerInterval);
+            GameData.timerInterval = setInterval(() => {
+                GameData.timeLeft--;
+                document.getElementById('modal-timer').innerText = `${GameData.timeLeft}s`;
+                if (GameData.timeLeft <= 0) {
+                    clearInterval(GameData.timerInterval);
+                    showFeedback("⏰ Time is up! Try again!", false);
+                }
+            }, 1000);
+
+            document.getElementById('question-modal').classList.remove('hidden');
+        }
+
+        function renderWordBank(words) {
+            const bank = document.getElementById('word-bank');
+            bank.innerHTML = '';
+            
+            // Shuffle word list
+            const shuffled = [...words].sort(() => Math.random() - 0.5);
+
+            shuffled.forEach((word) => {
+                const btn = document.createElement('button');
+                btn.className = "word-tile bg-emerald-600 hover:bg-emerald-500 text-white font-game px-4 py-2 rounded-xl text-lg border-2 border-emerald-300";
+                btn.innerText = word;
+                btn.onclick = () => {
+                    SoundFX.playPop();
+                    selectedWords.push(word);
+                    btn.style.display = 'none';
+                    renderSentenceSlots();
+                };
+                bank.appendChild(btn);
+            });
+        }
+
+        function renderSentenceSlots() {
+            const slots = document.getElementById('sentence-slots');
+            slots.innerHTML = '';
+
+            selectedWords.forEach((word, idx) => {
+                const tile = document.createElement('div');
+                tile.className = "word-tile bg-yellow-500 hover:bg-yellow-400 text-slate-900 font-game px-4 py-2 rounded-xl text-lg border-2 border-yellow-200 flex items-center space-x-1";
+                tile.innerHTML = `<span>${word}</span> <span class="text-xs text-red-700 ml-1">✕</span>`;
+                tile.onclick = () => {
+                    SoundFX.playPop();
+                    selectedWords.splice(idx, 1);
+                    // Re-render word bank options
+                    restoreWordInBank(word);
+                    renderSentenceSlots();
+                };
+                slots.appendChild(tile);
+            });
+        }
+
+        function restoreWordInBank(word) {
+            const bank = document.getElementById('word-bank');
+            const buttons = bank.querySelectorAll('button');
+            for (let btn of buttons) {
+                if (btn.innerText === word && btn.style.display === 'none') {
+                    btn.style.display = 'inline-block';
+                    break;
+                }
+            }
+        }
+
+        function checkAnswer() {
+            if (!GameData.currentMission) return;
+
+            const currentSentence = selectedWords.join(' ');
+            const targetSentence = GameData.currentMission.data.target;
+
+            if (currentSentence === targetSentence) {
+                // CORRECT!
+                SoundFX.playCorrect();
+                clearInterval(GameData.timerInterval);
+
+                GameData.score += 100;
+                GameData.completedCount++;
+                GameData.currentMission.completed = true;
+
+                // Update HUD
+                document.getElementById('hud-score').innerText = GameData.score;
+                document.getElementById('hud-completed').innerText = GameData.completedCount;
+
+                showFeedback("🎉 EXCELLENT! Correct sentence!", true);
+
+                setTimeout(() => {
+                    document.getElementById('question-modal').classList.add('hidden');
+                    GameData.currentMission = null;
+
+                    // Check Victory Condition
+                    if (GameData.completedCount >= 20) {
+                        showVictoryScreen();
+                    }
+                }, 1200);
+
+            } else {
+                // WRONG!
+                SoundFX.playWrong();
+                showFeedback(`❌ Not quite right! Remember to use '${GameData.currentMission.data.preposition}'`, false);
+            }
+        }
+
+        function showFeedback(msg, isSuccess) {
+            const fb = document.getElementById('modal-feedback');
+            fb.classList.remove('hidden', 'bg-red-500/20', 'text-red-300', 'bg-emerald-500/20', 'text-emerald-300');
+            if (isSuccess) {
+                fb.classList.add('bg-emerald-500/20', 'text-emerald-300');
+            } else {
+                fb.classList.add('bg-red-500/20', 'text-red-300');
+            }
+            fb.innerText = msg;
+        }
+
+        function showVictoryScreen() {
+            document.getElementById('victory-greeting').innerText = `Great Job, Explorer ${GameData.playerName}!`;
+            document.getElementById('final-completed').innerText = `${GameData.completedCount} / 20`;
+            document.getElementById('final-score').innerText = GameData.score;
+            document.getElementById('victory-modal').classList.remove('hidden');
+        }
+
+        function setupInputListeners() {
+            // Keyboard Controls
+            window.addEventListener('keydown', (e) => {
+                if (e.key === 'w' || e.key === 'W' || e.key === 'ArrowUp') keys.w = true;
+                if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') keys.a = true;
+                if (e.key === 's' || e.key === 'S' || e.key === 'ArrowDown') keys.s = true;
+                if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') keys.d = true;
+                if (e.key === ' ' && isGrounded) {
+                    playerVelocityY = JUMP_FORCE;
+                    isGrounded = false;
+                }
+            });
+
+            window.addEventListener('keyup', (e) => {
+                if (e.key === 'w' || e.key === 'W' || e.key === 'ArrowUp') keys.w = false;
+                if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') keys.a = false;
+                if (e.key === 's' || e.key === 'S' || e.key === 'ArrowDown') keys.s = false;
+                if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') keys.d = false;
+            });
+
+            // Touch Virtual Joystick
+            const joystickZone = document.getElementById('joystick-zone');
+            const joystickKnob = document.getElementById('joystick-knob');
+            let joystickActive = false;
+            let originX = 0, originY = 0;
+
+            if (joystickZone) {
+                joystickZone.addEventListener('touchstart', (e) => {
+                    joystickActive = true;
+                    const touch = e.touches[0];
+                    const rect = joystickZone.getBoundingClientRect();
+                    originX = rect.left + rect.width / 2;
+                    originY = rect.top + rect.height / 2;
+                });
+
+                window.addEventListener('touchmove', (e) => {
+                    if (!joystickActive) return;
+                    const touch = e.touches[0];
+                    const dx = touch.clientX - originX;
+                    const dy = touch.clientY - originY;
+                    const dist = Math.min(Math.hypot(dx, dy), 40);
+                    const angle = Math.atan2(dy, dx);
+
+                    joystickVector.x = (Math.cos(angle) * dist) / 40;
+                    joystickVector.y = (Math.sin(angle) * dist) / 40;
+
+                    joystickKnob.style.transform = `translate(${joystickVector.x * 25}px, ${joystickVector.y * 25}px)`;
+                });
+
+                window.addEventListener('touchend', () => {
+                    joystickActive = false;
+                    joystickVector = { x: 0, y: 0 };
+                    joystickKnob.style.transform = `translate(0px, 0px)`;
+                });
+            }
+
+            // Mobile Jump Button
+            const btnJump = document.getElementById('btn-jump');
+            if (btnJump) {
+                btnJump.addEventListener('click', () => {
+                    if (isGrounded) {
+                        playerVelocityY = JUMP_FORCE;
+                        isGrounded = false;
+                    }
+                });
+            }
+
+            // Start Game Button
+            document.getElementById('btn-start').addEventListener('click', () => {
+                SoundFX.init();
+                const nameInput = document.getElementById('input-player-name').value.trim();
+                GameData.playerName = nameInput.length > 0 ? nameInput : "Pupil";
+                document.getElementById('hud-player-name').innerText = GameData.playerName;
+
+                document.getElementById('start-screen').classList.add('hidden');
+                document.getElementById('top-hud').classList.remove('hidden');
+                
+                // Show touch controls on touch devices
+                if ('ontouchstart' in window) {
+                    document.getElementById('touch-controls').classList.remove('hidden');
+                }
+            });
+
+            // Question Modal Action Buttons
+            document.getElementById('btn-submit-answer').addEventListener('click', checkAnswer);
+            document.getElementById('btn-reset-words').addEventListener('click', () => {
+                if (GameData.currentMission) {
+                    selectedWords = [];
+                    renderWordBank(GameData.currentMission.data.words);
+                    renderSentenceSlots();
+                }
+            });
+
+            // Restart Button
+            document.getElementById('btn-restart').addEventListener('click', () => {
+                window.location.reload();
+            });
+        }
+
+        const clock = new THREE.Clock();
+
+        function updatePlayerPhysics(delta) {
+            if (!playerMesh || GameData.currentMission) return;
+
+            const moveSpeed = 12 * delta;
+            let moveX = 0;
+            let moveZ = 0;
+
+            // Keyboard input vector
+            if (keys.w) moveZ -= 1;
+            if (keys.s) moveZ += 1;
+            if (keys.a) moveX -= 1;
+            if (keys.d) moveX += 1;
+
+            // Add Joystick input
+            moveX += joystickVector.x;
+            moveZ += joystickVector.y;
+
+            // Normalize diagonal movement
+            const len = Math.hypot(moveX, moveZ);
+            if (len > 0) {
+                moveX = (moveX / len) * moveSpeed;
+                moveZ = (moveZ / len) * moveSpeed;
+
+                // Move Player
+                playerMesh.position.x += moveX;
+                playerMesh.position.z += moveZ;
+
+                // Face movement direction
+                const angle = Math.atan2(moveX, moveZ);
+                playerMesh.rotation.y = angle;
+            }
+
+            // Apply Gravity & Jumping
+            playerVelocityY += GRAVITY * delta;
+            playerMesh.position.y += playerVelocityY * delta;
+
+            // Floor Collision Limit
+            if (playerMesh.position.y <= 0) {
+                playerMesh.position.y = 0;
+                playerVelocityY = 0;
+                isGrounded = true;
+            }
+
+            // House Walls Collision Limits
+            playerMesh.position.x = Math.max(-28.5, Math.min(28.5, playerMesh.position.x));
+            playerMesh.position.z = Math.max(-23.5, Math.min(23.5, playerMesh.position.z));
+
+            // Smooth Third Person Camera Follow
+            const targetCamPos = new THREE.Vector3(
+                playerMesh.position.x,
+                playerMesh.position.y + 12,
+                playerMesh.position.z + 16
+            );
+            camera.position.lerp(targetCamPos, 0.1);
+            camera.lookAt(playerMesh.position.x, playerMesh.position.y + 1.5, playerMesh.position.z);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+
+            updatePlayerPhysics(delta);
+            updateMissionRingsAndCompass();
+
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        window.onload = function () {
+            init3DWorld();
+            setupInputListeners();
+            animate();
+        };
+    </script>
+</body>
+</html>
